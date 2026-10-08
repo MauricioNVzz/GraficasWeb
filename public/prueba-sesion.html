@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Prueba de sesión</title>
+
+</head>
+
+<body>
+
+<h1>Prueba de sesión</h1>
+
+<p id="usuario"></p>
+
+<button id="cerrar">
+    Cerrar sesión
+</button>
+
+
+<script>
+
+    async function comprobarSesion() {
+
+        const respuesta =
+            await fetch("/sesion");
+
+        const datos =
+            await respuesta.json();
+
+
+        if (!datos.autenticado) {
+
+            window.location.href = "/";
+
+            return;
+
+        }
+
+
+        document.getElementById(
+            "usuario"
+        ).textContent =
+            "Usuario conectado: " +
+            datos.usuario.usuario;
+
+    }
+
+
+    comprobarSesion();
+
+
+    document.getElementById(
+        "cerrar"
+    ).addEventListener(
+        "click",
+        async function () {
+
+            await fetch(
+                "/logout",
+                {
+                    method: "POST"
+                }
+            );
+
+
+            window.location.href = "/";
+
+        }
+    );
+
+</script>
+
+</body>
+
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Lobby - Serpientes y Escaleras</title>
+
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+
+        header {
+            background-color: #333;
+            color: white;
+            padding: 20px;
+        }
+
+
+        main {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+
+        h2 {
+            margin-bottom: 30px;
+        }
+
+
+        #conexion {
+            font-size: 16px;
+            margin: 20px 0;
+        }
+
+
+        #jugador1,
+        #jugador2 {
+            font-size: 20px;
+            margin: 15px 0;
+        }
+
+
+        #estado {
+            font-size: 18px;
+            margin: 30px 0;
+            font-weight: bold;
+        }
+
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            background-color: #333;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+
+        button:hover {
+            background-color: #555;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <header>
+
+        <h1>🐍 Serpientes y Escaleras 🪜</h1>
+
+    </header>
+
+
+    <main>
+
+        <h2>Sala de espera</h2>
+
+
+        <p id="conexion">
+            Conectando con el servidor...
+        </p>
+
+
+        <h3>Jugadores</h3>
+
+
+        <p id="jugador1">
+            Jugador 1: Esperando...
+        </p>
+
+
+        <p id="jugador2">
+            Jugador 2: Esperando...
+        </p>
+
+
+        <p id="estado">
+            Esperando jugadores...
+        </p>
+
+
+        <button id="cerrarSesion">
+            Cerrar sesión
+        </button>
+
+    </main>
+
+
+    <!-- =========================================
+         SOCKET.IO
+    ========================================== -->
+
+    <script src="/socket.io/socket.io.js"></script>
+
+
+    <script>
+
+        // ==========================================
+        // SOCKET.IO
+        // ==========================================
+
+        const socket = io();
+
+
+        // ==========================================
+        // USUARIO ACTUAL
+        // ==========================================
+
+        let usuarioActual = null;
+
+
+        // ==========================================
+        // CONEXIÓN
+        // ==========================================
+
+        socket.on("connect", function () {
+
+            console.log(
+                "Conectado a Socket.IO:",
+                socket.id
+            );
+
+
+            document.getElementById("conexion")
+                .textContent =
+                "🟢 Conectado al servidor";
+
+
+            // Una vez conectado, comprobamos
+            // la sesión del usuario
+
+            comprobarSesion();
+
+        });
+
+
+        // ==========================================
+        // DESCONEXIÓN
+        // ==========================================
+
+        socket.on("disconnect", function () {
+
+            console.log(
+                "Desconectado de Socket.IO"
+            );
+
+
+            document.getElementById("conexion")
+                .textContent =
+                "🔴 Desconectado del servidor";
+
+        });
+
+
+        // ==========================================
+        // COMPROBAR SESIÓN
+        // ==========================================
+
+        async function comprobarSesion() {
+
+            try {
+
+                const respuesta =
+                    await fetch("/sesion");
+
+
+                const datos =
+                    await respuesta.json();
+
+
+                // Si no existe sesión
+
+                if (!datos.autenticado) {
+
+                    window.location.href = "/";
+
+                    return;
+
+                }
+
+
+                // Guardar usuario
+
+                usuarioActual =
+                    datos.usuario;
+
+
+                console.log(
+                    "Usuario de la sesión:",
+                    usuarioActual
+                );
+
+
+                // Informar al servidor que
+                // este usuario entró al lobby
+
+                socket.emit(
+                    "entrarLobby",
+                    usuarioActual
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Error al comprobar sesión:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        // ==========================================
+        // ACTUALIZAR JUGADORES
+        // ==========================================
+
+        socket.on(
+            "actualizarLobby",
+            function (jugadores) {
+
+                console.log(
+                    "Jugadores en el lobby:",
+                    jugadores
+                );
+
+
+                const jugador1 =
+                    document.getElementById("jugador1");
+
+
+                const jugador2 =
+                    document.getElementById("jugador2");
+
+
+                // ------------------------------
+                // JUGADOR 1
+                // ------------------------------
+
+                if (jugadores.length >= 1) {
+
+                    jugador1.textContent =
+                        "Jugador 1: " +
+                        jugadores[0].usuario;
+
+                } else {
+
+                    jugador1.textContent =
+                        "Jugador 1: Esperando...";
+
+                }
+
+
+                // ------------------------------
+                // JUGADOR 2
+                // ------------------------------
+
+                if (jugadores.length >= 2) {
+
+                    jugador2.textContent =
+                        "Jugador 2: " +
+                        jugadores[1].usuario;
+
+                } else {
+
+                    jugador2.textContent =
+                        "Jugador 2: Esperando...";
+
+                }
+
+
+                // ------------------------------
+                // ESTADO
+                // ------------------------------
+
+                const estado =
+                    document.getElementById("estado");
+
+
+                if (jugadores.length === 0) {
+
+                    estado.textContent =
+                        "Esperando jugadores...";
+
+                } else if (jugadores.length === 1) {
+
+                    estado.textContent =
+                        "Esperando a otro jugador...";
+
+                }
+
+            }
+        );
+
+
+        // ==========================================
+        // PARTIDA LISTA
+        // ==========================================
+
+        socket.on("partidaLista", function (datos) {
+            console.log("PARTIDA LISTA:", datos);
+            const jugadores = datos.jugadores;
+            document.getElementById("jugador1").textContent =
+            "Jugador 1: " + jugadores[0].usuario;
+            document.getElementById("jugador2").textContent =
+            "Jugador 2: " + jugadores[1].usuario;
+            document.getElementById("estado").textContent =
+            "🎮 ¡Partida lista!";
+
+    console.log(
+        "ID de la partida:",
+        datos.partidaId
+    );
+
+    // Esperamos un momento para que ambos
+    // puedan ver que la partida está lista
+    setTimeout(function () {
+        window.location.href =
+            "/juego.html?partida=" + datos.partidaId;
+    }, 1500);
+});
+
+        // ==========================================
+        // CERRAR SESIÓN
+        // ==========================================
+
+        document.getElementById("cerrarSesion")
+            .addEventListener(
+                "click",
+                async function () {
+
+                    try {
+
+                        await fetch(
+                            "/logout",
+                            {
+                                method: "POST"
+                            }
+                        );
+
+
+                        socket.disconnect();
+
+
+                        window.location.href = "/";
+
+                    } catch (error) {
+
+                        console.error(
+                            "Error al cerrar sesión:",
+                            error
+                        );
+
+                    }
+
+                }
+            );
+
+    </script>
+
+</body>
+
+</html>

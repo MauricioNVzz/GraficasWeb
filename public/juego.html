@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Serpientes y Escaleras</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #222;
+        }
+
+        #informacion {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+
+            z-index: 10;
+
+            background: rgba(255, 255, 255, 0.9);
+
+            padding: 15px;
+
+            border-radius: 10px;
+
+            min-width: 220px;
+        }
+
+        #informacion h2 {
+            margin-top: 0;
+        }
+
+        #juego {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        button {
+            padding: 8px 15px;
+            margin-top: 10px;
+
+            cursor: pointer;
+        }
+
+    </style>
+
+    <!-- Importmap de Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+</head>
+
+<body>
+
+    <div id="informacion">
+
+        <h2>🐍 Serpientes y Escaleras</h2>
+
+        <p id="mensaje">
+            Cargando partida...
+        </p>
+
+        <p id="partida"></p>
+
+        <p id="usuario"></p>
+
+        <button id="volverLobby">
+            Volver al lobby
+        </button>
+
+        <button id="lanzarDado">
+    🎲 Lanzar dado
+</button>
+
+    </div>
+
+
+    <div id="juego"></div>
+
+
+    <script src="/socket.io/socket.io.js"></script>
+
+
+    <script type="module">
+
+import * as THREE from "three";
+
+// =====================================================
+// SOCKET.IO Y DATOS DE LA PARTIDA
+// =====================================================
+
+const socket = io();
+
+const parametros =
+    new URLSearchParams(window.location.search);
+
+const partidaId =
+    Number(parametros.get("partida"));
+
+let usuarioActual = null;
+let miUsuarioId = null;
+let soyJugador1 = false;
+let soyJugador2 = false;
+
+// =====================================================
+// COMPROBAR SESIÓN Y ENTRAR A LA PARTIDA
+// =====================================================
+
+async function entrarAPartida() {
+
+    try {
+
+        const respuesta =
+            await fetch("/sesion");
+
+        const datos =
+            await respuesta.json();
+
+        if (!datos.autenticado) {
+
+            window.location.href = "/";
+
+            return;
+        }
+
+        usuarioActual =
+            datos.usuario;
+
+        miUsuarioId =
+            usuarioActual.id;
+
+        document
+            .getElementById("usuario")
+            .textContent =
+            "Usuario: " +
+            usuarioActual.usuario;
+
+        document
+            .getElementById("partida")
+            .textContent =
+            "Partida: " +
+            partidaId;
+
+        console.log(
+            "Usuario actual:",
+            usuarioActual
+        );
+
+        console.log(
+            "ID de partida:",
+            partidaId
+        );
+
+
+        // ==========================================
+        // ENTRAR A LA PARTIDA EN EL SERVIDOR
+        // ==========================================
+
+        socket.emit(
+            "entrarPartida",
+            {
+                partidaId: partidaId,
+                usuarioId: miUsuarioId
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Error al entrar a la partida:",
+            error
+        );
+
+    }
+}
+
+// =====================================================
+// ESTADO INICIAL DE LA PARTIDA
+// =====================================================
+
+socket.on(
+    "estadoInicial",
+    function (datos) {
+
+        console.log(
+            "Estado inicial recibido:",
+            datos
+        );
+
+
+        // ==========================================
+        // IDENTIFICAR JUGADOR
+        // ==========================================
+
+        if (
+            datos.miUsuarioId ===
+            datos.jugador1Id
+        ) {
+
+            soyJugador1 = true;
+            soyJugador2 = false;
+
+            console.log(
+                "🎮 Soy el Jugador 1"
+            );
+
+        } else if (
+            datos.miUsuarioId ===
+            datos.jugador2Id
+        ) {
+
+            soyJugador1 = false;
+            soyJugador2 = true;
+
+            console.log(
+                "🎮 Soy el Jugador 2"
+            );
+        }
+
+
+        // ==========================================
+        // SINCRONIZAR POSICIONES
+        // ==========================================
+
+        casillaJugador1 =
+            datos.posicionJugador1;
+
+        casillaJugador2 =
+            datos.posicionJugador2;
+
+
+        // ==========================================
+        // SINCRONIZAR TURNO
+        // ==========================================
+
+        if (
+            datos.turno ===
+            datos.jugador1Id
+        ) {
+
+            turnoActual = 1;
+
+        } else {
+
+            turnoActual = 2;
+        }
+
+
+        // ==========================================
+        // COLOCAR MODELOS
+        // ==========================================
+
+        if (jugador1) {
+
+            colocarEnCasilla(
+                jugador1,
+                casillaJugador1
+            );
+        }
+
+        if (jugador2) {
+
+            colocarEnCasilla(
+                jugador2,
+                casillaJugador2
+            );
+        }
+
+
+        actualizarTurno();
+        actualizarBotonDado();
+
+    }
+);
+
+// =====================================================
+// SINCRONIZAR MOVIMIENTO DE LA PARTIDA
+// =====================================================
+
+socket.on(
+    "estadoPartida",
+    async function (datos) {
+
+        console.log(
+            "Estado de partida recibido:",
+            datos
+        );
+
+        if (datos.partidaId !== partidaId) {
+            return;
+        }
+
+        // Guardamos las posiciones que vienen del servidor
+        const nuevaPosicionJugador1 =
+            datos.posicionJugador1;
+
+        const nuevaPosicionJugador2 =
+            datos.posicionJugador2;
+
+
+        // ==========================================
+        // MOVER JUGADOR 1
+        // ==========================================
+
+        if (
+            jugador1 &&
+            nuevaPosicionJugador1 !== casillaJugador1
+        ) {
+
+            const cantidad =
+                nuevaPosicionJugador1 -
+                casillaJugador1;
+
+            casillaJugador1 =
+                await moverJugador(
+                    jugador1,
+                    casillaJugador1,
+                    cantidad
+                );
+        }
+
+
+        // ==========================================
+        // MOVER JUGADOR 2
+        // ==========================================
+
+        if (
+            jugador2 &&
+            nuevaPosicionJugador2 !== casillaJugador2
+        ) {
+
+            const cantidad =
+                nuevaPosicionJugador2 -
+                casillaJugador2;
+
+            casillaJugador2 =
+                await moverJugador(
+                    jugador2,
+                    casillaJugador2,
+                    cantidad
+                );
+        }
+
+
+        // ==========================================
+        // ACTUALIZAR TURNO
+        // ==========================================
+
+        if (
+            datos.turno ===
+            datos.jugador1Id
+        ) {
+
+            turnoActual = 1;
+
+        } else {
+
+            turnoActual = 2;
+        }
+
+
+        console.log(
+            "Nuevo turno:",
+            turnoActual
+        );
+
+
+        // ==========================================
+        // TERMINÓ EL MOVIMIENTO
+        // ==========================================
+
+        moviendoJugador = false;
+
+
+// ==========================================
+// COMPROBAR SI TERMINÓ LA PARTIDA
+// ==========================================
+
+if (datos.finalizada) {
+
+    const mensaje =
+        document.getElementById("mensaje");
+
+    if (datos.ganador === miUsuarioId) {
+
+        mensaje.textContent =
+            "🏆 ¡HAS GANADO LA PARTIDA!";
+
+    } else {
+
+        mensaje.textContent =
+            "😔 Has perdido la partida.";
+
+    }
+
+    const boton =
+        document.getElementById("lanzarDado");
+
+    if (boton) {
+
+        boton.disabled = true;
+
+        boton.textContent =
+            "🏆 Partida terminada";
+    }
+
+    return;
+}
+
+
+actualizarTurno();
+actualizarBotonDado();
+
+    }
+);
+import { GLTFLoader } from
+    "three/addons/loaders/GLTFLoader.js";
+
+import { OrbitControls } from
+    "three/addons/controls/OrbitControls.js";
+
+
+// =====================================================
+// ESCENA
+// =====================================================
+
+const escena =
+    new THREE.Scene();
+
+escena.background =
+    new THREE.Color(0x87ceeb);
+
+
+// =====================================================
+// CUADRÍCULA DE REFERENCIA
+// =====================================================
+
+const cuadrilla =
+    new THREE.GridHelper(
+        30,
+        30
+    );
+
+escena.add(cuadrilla);
+
+
+// Ejes de referencia
+
+const ejes =
+    new THREE.AxesHelper(10);
+
+escena.add(ejes);
+
+
+// =====================================================
+// CÁMARA
+// =====================================================
+
+const camara =
+    new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth /
+        window.innerHeight,
+        0.1,
+        1000
+    );
+
+camara.position.set(
+    0,
+    15,
+    20
+);
+
+camara.lookAt(
+    0,
+    0,
+    0
+);
+
+
+// =====================================================
+// RENDERIZADOR
+// =====================================================
+
+const renderizador =
+    new THREE.WebGLRenderer({
+        antialias: true
+    });
+
+renderizador.setSize(
+    window.innerWidth,
+    window.innerHeight
+);
+
+renderizador.setPixelRatio(
+    window.devicePixelRatio
+);
+
+document
+    .getElementById("juego")
+    .appendChild(
+        renderizador.domElement
+    );
+
+
+// =====================================================
+// CONTROLES DE CÁMARA
+// =====================================================
+
+const controles =
+    new OrbitControls(
+        camara,
+        renderizador.domElement
+    );
+
+controles.target.set(
+    0,
+    0,
+    0
+);
+
+controles.update();
+
+
+// =====================================================
+// LUCES
+// =====================================================
+
+const luzAmbiente =
+    new THREE.AmbientLight(
+        0xffffff,
+        2
+    );
+
+escena.add(
+    luzAmbiente
+);
+
+
+const luzDireccional =
+    new THREE.DirectionalLight(
+        0xffffff,
+        3
+    );
+
+luzDireccional.position.set(
+    5,
+    15,
+    10
+);
+
+escena.add(
+    luzDireccional
+);
+
+
+// =====================================================
+// CARGADOR
+// =====================================================
+
+const loader =
+    new GLTFLoader();
+
+
+// =====================================================
+// VARIABLES
+// =====================================================
+
+let mesa = null;
+
+let tablero = null;
+
+let jugador1 = null;
+
+let jugador2 = null;
+
+let dado = null;
+
+let casillaJugador1 = 1;
+let casillaJugador2 = 1;
+
+let turnoActual = 1;
+let moviendoJugador = false;
+
+// =====================================================
+// FUNCIÓN PARA MOSTRAR INFORMACIÓN DEL MODELO
+// =====================================================
+
+function revisarModelo(
+    nombre,
+    modelo
+) {
+
+    const caja =
+        new THREE.Box3()
+            .setFromObject(
+                modelo
+            );
+
+    const tamaño =
+        caja.getSize(
+            new THREE.Vector3()
+        );
+
+    const centro =
+        caja.getCenter(
+            new THREE.Vector3()
+        );
+
+
+    console.log(
+        "================================"
+    );
+
+    console.log(
+        "MODELO:",
+        nombre
+    );
+
+    console.log(
+        "Tamaño:",
+        tamaño
+    );
+
+    console.log(
+        "Centro:",
+        centro
+    );
+
+    console.log(
+        "Posición:",
+        modelo.position
+    );
+
+    console.log(
+        "Escala:",
+        modelo.scale
+    );
+
+    console.log(
+        "================================"
+    );
+}
+
+
+// =====================================================
+// CARGAR MESA
+// =====================================================
+
+console.log(
+    "Intentando cargar mesa..."
+);
+
+loader.load(
+
+    "/modelos/Mesagcw.glb",
+
+    function (gltf) {
+
+        mesa = gltf.scene;
+
+escena.add(mesa);
+
+console.log(
+    "MESA CARGADA CORRECTAMENTE"
+);
+
+// Agrandar la mesa
+mesa.scale.set(
+    4.5,
+    4.5,
+    4.5
+);
+
+// Revisar dimensiones después
+// de aplicar la escala
+
+mesa.updateMatrixWorld(true);
+
+const cajaMesa =
+    new THREE.Box3()
+        .setFromObject(mesa);
+
+const centroMesa =
+    cajaMesa.getCenter(
+        new THREE.Vector3()
+    );
+
+const tamañoMesa =
+    cajaMesa.getSize(
+        new THREE.Vector3()
+    );
+
+console.log(
+    "Mesa después de escalar:",
+    tamañoMesa
+);
+
+
+// Alinear el centro de la mesa
+// con el centro aproximado del tablero
+
+mesa.position.x =
+    -0.1510093 - centroMesa.x;
+
+mesa.position.z =
+    -0.1079885 - centroMesa.z;
+
+
+// Obtener nuevamente la caja
+// después de moverla
+
+mesa.updateMatrixWorld(true);
+
+const cajaMesaFinal =
+    new THREE.Box3()
+        .setFromObject(mesa);
+
+
+// El tablero empieza aproximadamente
+// en Y = 0.274
+
+const alturaBaseTablero = 0.274;
+
+
+// Colocar la parte superior
+// de la mesa justo debajo del tablero
+
+mesa.position.y +=
+    alturaBaseTablero -
+    cajaMesaFinal.max.y -
+    0.05;
+
+
+console.log(
+    "Mesa colocada correctamente"
+);
+
+cargarTablero();
+
+    },
+
+    function (progreso) {
+
+        console.log(
+            "Cargando mesa..."
+        );
+
+    },
+
+    function (error) {
+
+        console.error(
+            "ERROR AL CARGAR MESA:",
+            error
+        );
+
+    }
+
+);
+
+
+// =====================================================
+// CARGAR TABLERO
+// =====================================================
+
+function cargarTablero() {
+
+    console.log(
+        "Intentando cargar tablero..."
+    );
+
+    loader.load(
+
+        "/modelos/Tablerogcw.glb",
+
+        function (gltf) {
+
+            tablero =
+                gltf.scene;
+
+            // Girar el tablero 180° sobre el eje Y
+            tablero.rotation.y = Math.PI;
+
+            escena.add(
+                tablero
+            );
+
+            console.log(
+                "TABLERO CARGADO CORRECTAMENTE"
+            );
+
+            revisarModelo(
+                "Tablero",
+                tablero
+            );
+
+            cargarJugador1();
+
+        },
+
+        undefined,
+
+        function (error) {
+
+            console.error(
+                "ERROR AL CARGAR TABLERO:",
+                error
+            );
+
+        }
+
+    );
+
+}
+
+
+// =====================================================
+// CARGAR JUGADOR 1
+// =====================================================
+
+function cargarJugador1() {
+
+    console.log(
+        "Intentando cargar jugador 1..."
+    );
+
+    loader.load(
+
+        "/modelos/Jugador1gcw.glb",
+
+        function (gltf) {
+
+            jugador1 =
+                gltf.scene;
+
+            escena.add(
+                jugador1
+            );
+
+            console.log(
+                "JUGADOR 1 CARGADO CORRECTAMENTE"
+            );
+
+            revisarModelo(
+                "Jugador 1",
+                jugador1
+            );
+
+
+            colocarEnCasilla(jugador1, 1);
+
+
+            cargarJugador2();
+
+        },
+
+        undefined,
+
+        function (error) {
+
+            console.error(
+                "ERROR AL CARGAR JUGADOR 1:",
+                error
+            );
+
+        }
+
+    );
+
+}
+
+
+// =====================================================
+// CARGAR JUGADOR 2
+// =====================================================
+
+function cargarJugador2() {
+
+    console.log(
+        "Intentando cargar jugador 2..."
+    );
+
+    loader.load(
+
+        "/modelos/Jugador2gcw.glb",
+
+        function (gltf) {
+
+            jugador2 =
+                gltf.scene;
+
+            escena.add(
+                jugador2
+            );
+
+            console.log(
+                "JUGADOR 2 CARGADO CORRECTAMENTE"
+            );
+
+            revisarModelo(
+                "Jugador 2",
+                jugador2
+            );
+
+
+            colocarEnCasilla(jugador2, 1);
+
+            cargarDado();
+
+        },
+
+        undefined,
+
+        function (error) {
+
+            console.error(
+                "ERROR AL CARGAR JUGADOR 2:",
+                error
+            );
+
+        }
+
+    );
+
+}
+
+
+
+// =====================================================
+// POSICIONES DE LAS CASILLAS
+// =====================================================
+
+const posicionesCasillas = {};
+
+
+// =====================================================
+// LÍMITES DEL TABLERO
+// =====================================================
+
+const xInicio = -5.505;
+const xFinal = 6.055;
+
+const zInicio = 6.00;
+const zFinal = -5.50;
+
+
+// =====================================================
+// POSICIONES DE Z DE CADA FILA
+// =====================================================
+
+const posicionesZ = [
+    6.00,   // Fila 1
+    4.70,   // Fila 2
+    3.50,   // Fila 3
+    2.20,   // Fila 4
+    0.90,   // Fila 5
+   -0.40,   // Fila 6
+   -1.70,   // Fila 7
+   -3.00,   // Fila 8
+   -4.20,   // Fila 9
+   -5.50    // Fila 10
+];
+
+
+// =====================================================
+// POSICIONES DE X
+// =====================================================
+//
+// Por ahora usamos las posiciones de las columnas
+// basándonos en los extremos del tablero.
+//
+// Estas las vamos a ajustar después con las medidas
+// reales que ya obtuvimos.
+//
+
+const posicionesX = [
+    -5.505,  // Columna 1
+    -4.205,  // Columna 2
+    -2.905,  // Columna 3
+    -1.605,  // Columna 4
+    -0.305,  // Columna 5
+     0.995,  // Columna 6
+     2.295,  // Columna 7
+     3.595,  // Columna 8
+     4.895,  // Columna 9
+     6.055   // Columna 10
+];
+
+
+// =====================================================
+// GENERAR LAS 100 CASILLAS
+// =====================================================
+
+for (let numero = 1; numero <= 100; numero++) {
+
+    // Fila de la casilla
+    const fila =
+        Math.floor((numero - 1) / 10);
+
+    // Posición dentro de la fila
+    const posicionFila =
+        (numero - 1) % 10;
+
+    let columna;
+
+
+    // =================================================
+    // NUMERACIÓN EN SERPIENTE
+    // =================================================
+
+    if (fila % 2 === 0) {
+
+        // Fila 1, 3, 5, etc.
+        columna = posicionFila;
+
+    } else {
+
+        // Fila 2, 4, 6, etc.
+        columna = 9 - posicionFila;
+
+    }
+
+
+    // Coordenadas
+    const x =
+        posicionesX[columna];
+
+    const z =
+        posicionesZ[fila];
+
+
+    posicionesCasillas[numero] = [
+        x,
+        0.5,
+        z
+    ];
+}
+
+
+// =====================================================
+// FORZAR LAS CUATRO ESQUINAS EXACTAS
+// =====================================================
+
+posicionesCasillas[1] =
+    [-5.505, 0.5, 6.00];
+
+posicionesCasillas[10] =
+    [6.055, 0.5, 6.00];
+
+posicionesCasillas[91] =
+    [6.055, 0.5, -5.50];
+
+posicionesCasillas[100] =
+    [-5.505, 0.5, -5.50];
+
+
+// =====================================================
+// MOSTRAR POSICIONES EN CONSOLA
+// =====================================================
+
+console.log(
+    "=============================="
+);
+
+console.log(
+    "PRUEBA DE ESQUINAS"
+);
+
+console.log(
+    "Casilla 1:",
+    posicionesCasillas[1]
+);
+
+console.log(
+    "Casilla 10:",
+    posicionesCasillas[10]
+);
+
+console.log(
+    "Casilla 91:",
+    posicionesCasillas[91]
+);
+
+console.log(
+    "Casilla 100:",
+    posicionesCasillas[100]
+);
+
+console.log(
+    "=============================="
+);
+
+
+// =====================================================
+// FUNCIÓN PARA COLOCAR JUGADOR
+// =====================================================
+
+function colocarEnCasilla(
+    jugador,
+    numero
+) {
+
+    const posicion =
+        posicionesCasillas[numero];
+
+
+    if (!posicion) {
+
+        console.error(
+            "No existe la casilla:",
+            numero
+        );
+
+        return;
+    }
+
+
+    jugador.position.set(
+        posicion[0],
+        posicion[1],
+        posicion[2]
+    );
+
+
+    console.log(
+        `Jugador colocado en casilla ${numero}:`,
+        posicion
+    );
+}
+
+async function moverJugador(jugador, casillaActual, cantidad) {
+
+    let nuevaCasilla = casillaActual + cantidad;
+
+    // Límites del tablero
+    if (nuevaCasilla > 100) {
+        nuevaCasilla = 100;
+    }
+
+    if (nuevaCasilla < 1) {
+        nuevaCasilla = 1;
+    }
+
+    console.log(
+        `Moviendo de casilla ${casillaActual} a ${nuevaCasilla}`
+    );
+
+    const direccion =
+        nuevaCasilla > casillaActual ? 1 : -1;
+
+    for (
+        let casilla = casillaActual + direccion;
+        direccion === 1
+            ? casilla <= nuevaCasilla
+            : casilla >= nuevaCasilla;
+        casilla += direccion
+    ) {
+
+        colocarEnCasilla(jugador, casilla);
+
+        console.log(
+            `Jugador avanzando a casilla ${casilla}`
+        );
+
+        await new Promise(
+            resolver => setTimeout(resolver, 400)
+        );
+    }
+
+    return nuevaCasilla;
+}
+
+function actualizarBotonDado() {
+
+    const boton =
+        document.getElementById("lanzarDado");
+
+    if (!boton) {
+        return;
+    }
+
+    const esMiTurno =
+        (soyJugador1 && turnoActual === 1) ||
+        (soyJugador2 && turnoActual === 2);
+
+    if (esMiTurno && !moviendoJugador) {
+
+        boton.disabled = false;
+
+        boton.textContent =
+            "🎲 Lanzar dado";
+
+    } else {
+
+        boton.disabled = true;
+
+        boton.textContent =
+            "⏳ Esperando turno...";
+    }
+}
+
+async function lanzarDado() {
+
+    if (moviendoJugador) {
+
+        console.log(
+            "El jugador todavía se está moviendo..."
+        );
+
+        return;
+    }
+
+
+    if (
+        (soyJugador1 && turnoActual !== 1) ||
+        (soyJugador2 && turnoActual !== 2)
+    ) {
+
+        console.log(
+            "No es tu turno."
+        );
+
+        return;
+    }
+
+
+    moviendoJugador = true;
+
+    actualizarBotonDado();
+
+
+    console.log(
+        "Solicitando lanzamiento al servidor..."
+    );
+
+
+    socket.emit(
+        "lanzarDado",
+        {
+            partidaId: partidaId,
+            usuarioId: miUsuarioId
+        }
+    );
+}
+
+function actualizarTurno() {
+
+    const mensaje =
+        document.getElementById("mensaje");
+
+    if (turnoActual === 1) {
+
+        mensaje.textContent =
+            "🎲 Turno del Jugador 1";
+
+    } else {
+
+        mensaje.textContent =
+            "🎲 Turno del Jugador 2";
+    }
+}
+// =====================================================
+// CARGAR DADO
+// =====================================================
+
+function cargarDado() {
+
+    console.log(
+        "Intentando cargar dado..."
+    );
+
+    loader.load(
+
+        "/modelos/Dadogcw.glb",
+
+        function (gltf) {
+
+            dado =
+                gltf.scene;
+
+            escena.add(
+                dado
+            );
+
+            console.log(
+                "DADO CARGADO CORRECTAMENTE"
+            );
+
+            revisarModelo(
+                "Dado",
+                dado
+            );
+
+
+            dado.scale.set(
+    0.5,
+    0.5,
+    0.5
+);
+
+dado.position.set(
+    7,
+    1,
+    0
+);
+
+        },
+
+        undefined,
+
+        function (error) {
+
+            console.error(
+                "ERROR AL CARGAR DADO:",
+                error
+            );
+
+        }
+
+    );
+
+}
+
+
+// =====================================================
+// ANIMACIÓN
+// =====================================================
+
+function animar() {
+
+    requestAnimationFrame(
+        animar
+    );
+
+    controles.update();
+
+    renderizador.render(
+        escena,
+        camara
+    );
+
+}
+
+animar();
+
+        // =====================================================
+        // REDIMENSIONAR VENTANA
+        // =====================================================
+
+        window.addEventListener(
+            "resize",
+            function () {
+
+                camara.aspect =
+                    window.innerWidth /
+                    window.innerHeight;
+
+                camara.updateProjectionMatrix();
+
+
+                renderizador.setSize(
+                    window.innerWidth,
+                    window.innerHeight
+                );
+
+            }
+        );
+
+
+        // =====================================================
+        // VOLVER AL LOBBY
+        // =====================================================
+
+        document
+            .getElementById("volverLobby")
+            .addEventListener(
+                "click",
+                function () {
+
+                    window.location.href =
+                        "/lobby.html";
+
+                }
+            );
+
+            document
+    .getElementById("lanzarDado")
+    .addEventListener(
+        "click",
+        lanzarDado
+    );
+
+    entrarAPartida();
+
+    </script>
+
+</body>
+
+</html>
