@@ -154,6 +154,40 @@
 
     }
 
+    
+.facebook-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 12px;
+    padding: 12px;
+
+    background-color: #1877F2;
+    color: white;
+    text-decoration: none;
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.facebook-btn:hover {
+    background-color: #1664c1;
+}
+
+.facebook-icon {
+    font-family: Arial, sans-serif;
+    font-size: 23px;
+    font-weight: bold;
+}
+
+
 </style>
 </head>
 
@@ -162,7 +196,7 @@
 <div class="login">
 
     <h1>
-        🐍 Serpientes y Escaleras 🪜
+        Serpientes y Escaleras
     </h1>
 
     <p class="subtitulo">
@@ -202,6 +236,10 @@
 
     </form>
 
+    <a href="/auth/facebook" class="facebook-btn">
+        <span class="facebook-icon">f</span>
+        Continuar con Facebook
+    </a>
 
     <div id="mensaje"></div>
 
