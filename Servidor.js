@@ -1,8 +1,15 @@
+require("dotenv").config();
+
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
 const http = require("http");
 const { Server } = require("socket.io");
+
+const passport = require("passport");
+const FacebookStrategy =
+    require("passport-facebook").Strategy;
+
 
 const conexion = require("./conexion");
 
@@ -10,24 +17,15 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-
-// ==========================================
-// CREAR SERVIDOR HTTP
-// ==========================================
+// Servidor HTTP
 
 const servidor = http.createServer(app);
 
-
-// ==========================================
-// CONFIGURAR SOCKET.IO
-// ==========================================
+// Socket.io
 
 const io = new Server(servidor);
 
-
-// ==========================================
-// MIDDLEWARES
-// ==========================================
+// Middleware
 
 app.use(express.json());
 
@@ -41,14 +39,183 @@ app.use(session({
     saveUninitialized: false
 }));
 
+app.use(passport.initialize());
+
 app.use(express.static(
     path.join(__dirname, "public")
 ));
 
 
-// ==========================================
-// REGISTRO DE USUARIOS
-// ==========================================
+// API Facebook
+
+passport.use(
+    new FacebookStrategy(
+        {
+            clientID: process.env.FACEBOOK_APP_ID,
+            clientSecret: process.env.FACEBOOK_APP_SECRET,
+            callbackURL: "http://localhost:3000/auth/facebook/callback",
+            profileFields: ["id", "displayName", "email"]
+        },
+
+        function (accessToken, refreshToken, profile, done) {
+            const facebookId = profile.id;
+
+            const correoMeta =
+                profile.emails && profile.emails.length > 0
+                    ? profile.emails[0].value
+                    : null;
+
+            // Buscar si esta cuenta de Facebook ya existe.
+            const sqlBuscar = `
+                SELECT id, usuario, correo
+                FROM usuarios
+                WHERE proveedor = ? AND proveedor_id = ?
+                LIMIT 1
+            `;
+
+            conexion.query(
+                sqlBuscar,
+                ["facebook", facebookId],
+                (error, resultados) => {
+                    if (error) {
+                        return done(error);
+                    }
+
+                    // Si ya existe, reutilizar la cuenta.
+                    if (resultados.length > 0) {
+                        return done(null, resultados[0]);
+                    }
+
+                    // Crear una cuenta nueva.
+                    const crearUsuario = (correoFinal) => {
+                        const nombreUsuario =
+                            `fb_${facebookId}`.slice(0, 50);
+
+                        const sqlInsertar = `
+                            INSERT INTO usuarios
+                                (usuario, correo, password,
+                                 proveedor, proveedor_id)
+                            VALUES (?, ?, NULL, ?, ?)
+                        `;
+
+                        conexion.query(
+                            sqlInsertar,
+                            [
+                                nombreUsuario,
+                                correoFinal,
+                                "facebook",
+                                facebookId
+                            ],
+                            (error, resultado) => {
+                                if (error) {
+                                    return done(error);
+                                }
+
+                                conexion.query(
+                                    `SELECT id, usuario, correo
+                                     FROM usuarios
+                                     WHERE id = ?`,
+                                    [resultado.insertId],
+                                    (error, nuevosUsuarios) => {
+                                        if (error) {
+                                            return done(error);
+                                        }
+
+                                        if (nuevosUsuarios.length === 0) {
+                                            return done(
+                                                new Error(
+                                                    "No se encontró el usuario creado."
+                                                )
+                                            );
+                                        }
+
+                                        return done(
+                                            null,
+                                            nuevosUsuarios[0]
+                                        );
+                                    }
+                                );
+                            }
+                        );
+                    };
+
+                    // Facebook puede no proporcionar correo.
+                    if (!correoMeta) {
+                        return crearUsuario(null);
+                    }
+
+                    // Evitar duplicar un correo ya registrado.
+                    conexion.query(
+                        `SELECT id FROM usuarios
+                         WHERE correo = ? LIMIT 1`,
+                        [correoMeta],
+                        (error, usuariosCorreo) => {
+                            if (error) {
+                                return done(error);
+                            }
+
+                            const correoFinal =
+                                usuariosCorreo.length > 0
+                                    ? null
+                                    : correoMeta;
+
+                            crearUsuario(correoFinal);
+                        }
+                    );
+                }
+            );
+        }
+    )
+);
+
+
+// Sesion mediante Facebook
+
+app.get(
+    "/auth/facebook",
+    passport.authenticate("facebook", {
+        scope: ["email"],
+        session: false
+    })
+);
+
+app.get(
+    "/auth/facebook/callback",
+
+    passport.authenticate("facebook", {
+        session: false,
+        failureRedirect: "/?facebook=error"
+    }),
+
+    (req, res) => {
+        const usuario = req.user;
+
+        // Utilizar la misma estructura de sesión
+        req.session.usuario = {
+            id: usuario.id,
+            usuario: usuario.usuario,
+            correo: usuario.correo
+        };
+
+        // Guardar la sesión antes de ir al lobby.
+        req.session.save((error) => {
+            if (error) {
+                console.error(
+                    "Error al guardar sesión de Facebook:",
+                    error
+                );
+
+                return res
+                    .status(500)
+                    .send("No se pudo crear la sesión.");
+            }
+
+            return res.redirect("/lobby.html");
+        });
+    }
+);
+
+// Registro Usuarios
 
 app.post("/registro", (req, res) => {
 
@@ -116,10 +283,7 @@ app.post("/registro", (req, res) => {
 
 });
 
-
-// ==========================================
-// INICIO DE SESIÓN
-// ==========================================
+// Inicio Sesion
 
 app.post("/login", (req, res) => {
 
@@ -209,10 +373,7 @@ app.post("/login", (req, res) => {
 
 });
 
-
-// ==========================================
-// COMPROBAR SESIÓN
-// ==========================================
+// Comprobar la sesion
 
 app.get("/sesion", (req, res) => {
 
@@ -236,10 +397,7 @@ app.get("/sesion", (req, res) => {
 
 });
 
-
-// ==========================================
-// CERRAR SESIÓN
-// ==========================================
+// Cierra Sesion
 
 app.post("/logout", (req, res) => {
 
@@ -270,15 +428,9 @@ app.post("/logout", (req, res) => {
 
 });
 
-// ==========================================
-// JUGADORES EN EL LOBBY
-// ==========================================
+// Mecanicas Serpientes y Escaleras etc
 
 let jugadoresLobby = [];
-
-// ==========================================
-// PARTIDAS ACTIVAS EN MEMORIA
-// ==========================================
 
 let partidasActivas = {};
 
@@ -300,9 +452,6 @@ const serpientes = {
     97: 61
 };
 
-// ==========================================
-// SOCKET.IO
-// ==========================================
 
 io.on("connection", (socket) => {
 
@@ -310,10 +459,6 @@ io.on("connection", (socket) => {
         "Jugador conectado mediante Socket.IO:",
         socket.id
     );
-
-    // ==========================================
-// JUGADOR ENTRA A UNA PARTIDA
-// ==========================================
 
 socket.on(
     "entrarPartida",
@@ -346,10 +491,6 @@ socket.on(
             return;
         }
 
-        // ==========================================
-// COMPROBAR SI LA PARTIDA YA TERMINÓ
-// ==========================================
-
 if (partida.finalizada) {
 
     socket.emit(
@@ -362,10 +503,6 @@ if (partida.finalizada) {
 
     return;
 }
-
-        // ==========================================
-        // COMPROBAR QUE EL USUARIO PERTENECE
-        // ==========================================
 
         if (
             usuarioId !== partida.jugador1Id &&
@@ -382,11 +519,6 @@ if (partida.finalizada) {
 
             return;
         }
-
-
-        // ==========================================
-        // GUARDAR SOCKET DEL JUGADOR
-        // ==========================================
 
         if (
             usuarioId === partida.jugador1Id
@@ -406,11 +538,6 @@ if (partida.finalizada) {
             "Estado actualizado:",
             partida
         );
-
-
-        // ==========================================
-        // DECIRLE A ESTE JUGADOR QUIÉN ES
-        // ==========================================
 
         socket.emit(
             "estadoInicial",
@@ -474,11 +601,6 @@ if (partida.finalizada) {
 
     });
 
-
-    // ==========================================
-    // JUGADOR ENTRA AL LOBBY
-    // ==========================================
-
     socket.on("entrarLobby", (usuario) => {
 
         console.log(
@@ -521,20 +643,11 @@ if (partida.finalizada) {
             jugadoresLobby.length
         );
 
-
-        // ==========================================
-        // INFORMAR A TODOS LOS JUGADORES
-        // ==========================================
-
         io.emit(
             "actualizarLobby",
             jugadoresLobby
         );
 
-
-        // ==========================================
-        // COMPROBAR SI YA HAY DOS JUGADORES
-        // ==========================================
         if (jugadoresLobby.length === 2) {
 
     console.log(
@@ -578,31 +691,16 @@ if (partida.finalizada) {
                 partidaId
             );
 
-
-            // ==========================================
-            // CREAR ESTADO DE LA PARTIDA
-            // ==========================================
-
             partidasActivas[partidaId] = {
-    jugador1Id: jugador1.id,
-    jugador2Id: jugador2.id,
-    posicionJugador1: 1,
-    posicionJugador2: 1,
-    turno: jugador1.id,
-    resultadoDado: null,
-    finalizada: false,
-    ganador: null
-};
-
-            console.log(
-                "Estado de partida creado:",
-                partidasActivas[partidaId]
-            );
-
-
-            // ==========================================
-            // AVISAR A LOS DOS JUGADORES
-            // ==========================================
+                jugador1Id: jugador1.id,
+                jugador2Id: jugador2.id,
+                posicionJugador1: 1,
+                posicionJugador2: 1,
+                turno: jugador1.id,
+                resultadoDado: null,
+                finalizada: false,
+                ganador: null
+            };
 
             io.emit(
                 "partidaLista",
@@ -617,10 +715,6 @@ if (partida.finalizada) {
 }
 });
 
-// ==========================================
-// LANZAR DADO
-// ==========================================
-
 socket.on(
     "lanzarDado",
     ({ partidaId, usuarioId }) => {
@@ -630,11 +724,6 @@ socket.on(
             partidaId,
             usuarioId
         );
-
-
-        // ==========================================
-        // COMPROBAR QUE EXISTE LA PARTIDA
-        // ==========================================
 
         const partida =
             partidasActivas[partidaId];
@@ -656,11 +745,6 @@ socket.on(
             return;
         }
 
-
-        // ==========================================
-        // COMPROBAR QUE EL USUARIO PARTICIPA
-        // ==========================================
-
         if (
             usuarioId !== partida.jugador1Id &&
             usuarioId !== partida.jugador2Id
@@ -681,11 +765,6 @@ socket.on(
             return;
         }
 
-
-        // ==========================================
-        // COMPROBAR EL TURNO
-        // ==========================================
-
         if (usuarioId !== partida.turno) {
 
             console.log(
@@ -704,22 +783,8 @@ socket.on(
         }
 
 
-        // ==========================================
-        // GENERAR DADO
-        // ==========================================
-
         const resultado =
             Math.floor(Math.random() * 6) + 1;
-
-
-        console.log(
-            `🎲 Jugador ${usuarioId} sacó ${resultado}`
-        );
-
-
-        // ==========================================
-        // MOVER JUGADOR
-        // ==========================================
 
         let posicionAnterior;
         let posicionNueva;
@@ -744,25 +809,10 @@ socket.on(
                 posicionAnterior + resultado;
         }
 
-
-        // ==========================================
-        // NO PASAR DE LA CASILLA 100
-        // ==========================================
-
         if (posicionNueva > 100) {
 
             posicionNueva = 100;
         }
-
-
-        console.log(
-            `Jugador ${usuarioId} avanzó de ${posicionAnterior} a ${posicionNueva}`
-        );
-
-
-        // ==========================================
-        // COMPROBAR ESCALERA
-        // ==========================================
 
         if (
             escaleras[posicionNueva]
@@ -771,18 +821,9 @@ socket.on(
             const destino =
                 escaleras[posicionNueva];
 
-            console.log(
-                `🪜 ¡Escalera! ${posicionNueva} → ${destino}`
-            );
-
             posicionNueva =
                 destino;
         }
-
-
-        // ==========================================
-        // COMPROBAR SERPIENTE
-        // ==========================================
 
         else if (
             serpientes[posicionNueva]
@@ -791,18 +832,9 @@ socket.on(
             const destino =
                 serpientes[posicionNueva];
 
-            console.log(
-                `🐍 ¡Serpiente! ${posicionNueva} → ${destino}`
-            );
-
             posicionNueva =
                 destino;
         }
-
-
-        // ==========================================
-        // GUARDAR POSICIÓN
-        // ==========================================
 
         if (
             usuarioId === partida.jugador1Id
@@ -817,9 +849,6 @@ socket.on(
                 posicionNueva;
         }
 
-        // ==========================================
-// COMPROBAR VICTORIA
-// ==========================================
 
 let ganador = null;
 
@@ -829,11 +858,6 @@ if (posicionNueva === 100) {
 
     partida.finalizada = true;
     partida.ganador = usuarioId;
-
-    console.log(
-        `🏆 ¡El jugador ${usuarioId} ha ganado la partida!`
-    );
-
 
     // ==========================================
     // GUARDAR RESULTADO EN MYSQL
@@ -874,18 +898,8 @@ if (posicionNueva === 100) {
     );
 }
 
-
-        // ==========================================
-// GUARDAR RESULTADO DEL DADO
-// ==========================================
-
 partida.resultadoDado =
     resultado;
-
-
-// ==========================================
-// CAMBIAR TURNO
-// ==========================================
 
 if (!partida.finalizada) {
 
@@ -902,20 +916,6 @@ if (!partida.finalizada) {
             partida.jugador1Id;
     }
 }
-
-        // ==========================================
-        // MOSTRAR ESTADO EN CONSOLA
-        // ==========================================
-
-        console.log(
-            "Nuevo estado de partida:",
-            partida
-        );
-
-
-        // ==========================================
-        // ENVIAR ESTADO A LOS DOS JUGADORES
-        // ==========================================
 
         io.emit(
             "estadoPartida",
@@ -962,25 +962,14 @@ socket.on(
         document
             .getElementById("mensaje")
             .textContent =
-            "⚠️ " + datos.mensaje;
+            " " + datos.mensaje;
 
         moviendoJugador = false;
 
         actualizarBotonDado();
     }
 );
-    // ==========================================
-    // JUGADOR SE DESCONECTA
-    // ==========================================
-
-    
-
 });
-
-
-// ==========================================
-// INICIAR SERVIDOR
-// ==========================================
 
 servidor.listen(PORT, () => {
 
