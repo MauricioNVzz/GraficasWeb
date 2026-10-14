@@ -93,7 +93,7 @@
 
     <header>
 
-        <h1>🐍 Serpientes y Escaleras 🪜</h1>
+        <h1>Serpientes y Escaleras</h1>
 
     </header>
 
@@ -132,58 +132,24 @@
 
     </main>
 
-
-    <!-- =========================================
-         SOCKET.IO
-    ========================================== -->
-
     <script src="/socket.io/socket.io.js"></script>
 
 
     <script>
 
-        // ==========================================
-        // SOCKET.IO
-        // ==========================================
-
         const socket = io();
-
-
-        // ==========================================
-        // USUARIO ACTUAL
-        // ==========================================
 
         let usuarioActual = null;
 
-
-        // ==========================================
-        // CONEXIÓN
-        // ==========================================
-
         socket.on("connect", function () {
-
-            console.log(
-                "Conectado a Socket.IO:",
-                socket.id
-            );
-
 
             document.getElementById("conexion")
                 .textContent =
-                "🟢 Conectado al servidor";
-
-
-            // Una vez conectado, comprobamos
-            // la sesión del usuario
+                "Conectado al servidor";
 
             comprobarSesion();
 
         });
-
-
-        // ==========================================
-        // DESCONEXIÓN
-        // ==========================================
 
         socket.on("disconnect", function () {
 
@@ -194,14 +160,9 @@
 
             document.getElementById("conexion")
                 .textContent =
-                "🔴 Desconectado del servidor";
+                "Desconectado del servidor";
 
         });
-
-
-        // ==========================================
-        // COMPROBAR SESIÓN
-        // ==========================================
 
         async function comprobarSesion() {
 
@@ -266,12 +227,6 @@
             "actualizarLobby",
             function (jugadores) {
 
-                console.log(
-                    "Jugadores en el lobby:",
-                    jugadores
-                );
-
-
                 const jugador1 =
                     document.getElementById("jugador1");
 
@@ -279,10 +234,7 @@
                 const jugador2 =
                     document.getElementById("jugador2");
 
-
-                // ------------------------------
                 // JUGADOR 1
-                // ------------------------------
 
                 if (jugadores.length >= 1) {
 
@@ -297,10 +249,7 @@
 
                 }
 
-
-                // ------------------------------
                 // JUGADOR 2
-                // ------------------------------
 
                 if (jugadores.length >= 2) {
 
@@ -315,10 +264,7 @@
 
                 }
 
-
-                // ------------------------------
                 // ESTADO
-                // ------------------------------
 
                 const estado =
                     document.getElementById("estado");
@@ -340,10 +286,6 @@
         );
 
 
-        // ==========================================
-        // PARTIDA LISTA
-        // ==========================================
-
         socket.on("partidaLista", function (datos) {
             console.log("PARTIDA LISTA:", datos);
             const jugadores = datos.jugadores;
@@ -352,12 +294,7 @@
             document.getElementById("jugador2").textContent =
             "Jugador 2: " + jugadores[1].usuario;
             document.getElementById("estado").textContent =
-            "🎮 ¡Partida lista!";
-
-    console.log(
-        "ID de la partida:",
-        datos.partidaId
-    );
+            "La partida va a comenzar";
 
     // Esperamos un momento para que ambos
     // puedan ver que la partida está lista
@@ -366,10 +303,6 @@
             "/juego.html?partida=" + datos.partidaId;
     }, 1500);
 });
-
-        // ==========================================
-        // CERRAR SESIÓN
-        // ==========================================
 
         document.getElementById("cerrarSesion")
             .addEventListener(
