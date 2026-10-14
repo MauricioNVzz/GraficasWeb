@@ -48,9 +48,167 @@
             cursor: pointer;
         }
 
+        
+    #controlesJuego {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        z-index: 1000;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    #controlesJuego button {
+        padding: 10px 15px;
+        border: 1px solid #ffffff55;
+        border-radius: 9px;
+        background: #17365e;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 3px 8px #0004;
+    }
+
+    #controlesJuego button:hover {
+        background: #24548a;
+    }
+
+    .fondoVentana[hidden] {
+        display: none !important;
+    }
+
+    .fondoVentana {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+        background: #07142699;
+        font-family: Arial, sans-serif;
+    }
+
+    .ventanaJuego {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        box-sizing: border-box;
+        padding: 28px;
+        border: 2px solid #78a9d8;
+        border-radius: 16px;
+        background: #f5f9ff;
+        color: #183453;
+        text-align: center;
+        box-shadow: 0 12px 40px #0005;
+    }
+
+    .ventanaJuego h2 {
+        margin: 5px 0 12px;
+        color: #173f70;
+    }
+
+    .ventanaJuego p {
+        line-height: 1.5;
+    }
+
+    .cerrarVentana {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        border: none;
+        background: transparent;
+        color: #183453;
+        font-size: 28px;
+        cursor: pointer;
+    }
+
+    .opcionConfiguracion {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0;
+        text-align: left;
+    }
+
+    .opcionConfiguracion input[type="range"] {
+        width: 45%;
+    }
+
+    .opcionConfiguracion select {
+        padding: 7px;
+        border: 1px solid #b6c9df;
+        border-radius: 6px;
+    }
+
+    .opcionConfiguracion input[type="checkbox"] {
+        margin-right: 6px;
+    }
+
+    .opcionesPausa {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 22px;
+    }
+
+    .botonPrincipal,
+    .botonSecundario {
+        padding: 11px 15px;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        cursor: pointer;
+    }
+
+    .botonPrincipal {
+        background: #245a91;
+        color: white;
+    }
+
+    .botonSecundario {
+        background: #dce8f5;
+        color: #183453;
+    }
+
+    .botonPrincipal:hover {
+        background: #173f70;
+    }
+
+    .botonSecundario:hover {
+        background: #c4d9ef;
+    }
+
+    .notaVentana {
+        margin-top: 18px;
+        color: #64758a;
+        font-size: 12px;
+    }
+
+    @media (max-width: 480px) {
+        #controlesJuego {
+            top: 8px;
+            right: 8px;
+            gap: 6px;
+        }
+
+        #controlesJuego button {
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+
+        .ventanaJuego {
+            padding: 24px 18px;
+        }
+    }
+
     </style>
 
-    <!-- Importmap de Three.js -->
     <script type="importmap">
     {
         "imports": {
@@ -66,7 +224,7 @@
 
     <div id="informacion">
 
-        <h2>🐍 Serpientes y Escaleras</h2>
+        <h2>Serpientes y Escaleras</h2>
 
         <p id="mensaje">
             Cargando partida...
@@ -80,26 +238,127 @@
             Volver al lobby
         </button>
 
-        <button id="lanzarDado">
-    🎲 Lanzar dado
-</button>
+        <button id="lanzarDado">Lanzar dado</button>
 
     </div>
 
 
     <div id="juego"></div>
 
+    
+<!-- Configuracion y Pausa -->
+<div id="controlesJuego">
+    <button id="btnConfiguracion" type="button">
+        ⚙ Configuración
+    </button>
+
+    <button id="btnPausa" type="button">
+        ⏸ Pausa
+    </button>
+</div>
+
+<div id="ventanaConfiguracion" class="fondoVentana" hidden>
+    <div class="ventanaJuego">
+        <button class="cerrarVentana"
+                data-cerrar="ventanaConfiguracion"
+                type="button">×</button>
+
+        <h2>Configuración</h2>
+        <p>Personaliza tu experiencia de juego.</p>
+
+        <div class="opcionConfiguracion">
+            <label for="volumenJuego">Volumen</label>
+            <input id="volumenJuego"
+                   type="range" min="0" max="100" value="70">
+        </div>
+
+        <div class="opcionConfiguracion">
+            <label for="calidadJuego">Calidad gráfica</label>
+            <select id="calidadJuego">
+                <option value="baja">Baja</option>
+                <option value="media" selected>Media</option>
+                <option value="alta">Alta</option>
+            </select>
+        </div>
+
+        <div class="opcionConfiguracion">
+            <label>
+                <input type="checkbox" checked>
+                Mostrar efectos visuales
+            </label>
+        </div>
+
+        <button class="botonSecundario"
+                data-cerrar="ventanaConfiguracion"
+                type="button">
+            Cerrar
+        </button>
+    </div>
+</div>
+}
+<div id="ventanaPausa" class="fondoVentana" hidden>
+    <div class="ventanaJuego">
+        <button class="cerrarVentana"
+                data-cerrar="ventanaPausa"
+                type="button">×</button>
+
+        <h2>Juego en pausa</h2>
+
+        <div class="opcionesPausa">
+            <button class="botonPrincipal"
+                    data-cerrar="ventanaPausa"
+                    type="button">
+                Continuar
+            </button>
+
+            <button class="botonSecundario" type="button">
+                Reiniciar partida
+            </button>
+
+            <button class="botonSecundario" type="button">
+                Salir al lobby
+            </button>
+        </div>
+
+        <p class="notaVentana">
+           opciones
+        </p>
+    </div>
+</div>
+
+<script>
+    // Ventanas
+    document.getElementById("btnConfiguracion")
+        .addEventListener("click", () => {
+            document.getElementById(
+                "ventanaConfiguracion"
+            ).hidden = false;
+        });
+
+    document.getElementById("btnPausa")
+        .addEventListener("click", () => {
+            document.getElementById(
+                "ventanaPausa"
+            ).hidden = false;
+        });
+
+    document.querySelectorAll("[data-cerrar]")
+        .forEach(boton => {
+            boton.addEventListener("click", () => {
+                const idVentana = boton.dataset.cerrar;
+
+                document.getElementById(idVentana).hidden = true;
+            });
+        });
+</script>
 
     <script src="/socket.io/socket.io.js"></script>
-
 
     <script type="module">
 
 import * as THREE from "three";
 
-// =====================================================
-// SOCKET.IO Y DATOS DE LA PARTIDA
-// =====================================================
+// Socket.io y Partida
 
 const socket = io();
 
@@ -113,10 +372,6 @@ let usuarioActual = null;
 let miUsuarioId = null;
 let soyJugador1 = false;
 let soyJugador2 = false;
-
-// =====================================================
-// COMPROBAR SESIÓN Y ENTRAR A LA PARTIDA
-// =====================================================
 
 async function entrarAPartida() {
 
@@ -163,11 +418,6 @@ async function entrarAPartida() {
             partidaId
         );
 
-
-        // ==========================================
-        // ENTRAR A LA PARTIDA EN EL SERVIDOR
-        // ==========================================
-
         socket.emit(
             "entrarPartida",
             {
@@ -186,10 +436,6 @@ async function entrarAPartida() {
     }
 }
 
-// =====================================================
-// ESTADO INICIAL DE LA PARTIDA
-// =====================================================
-
 socket.on(
     "estadoInicial",
     function (datos) {
@@ -198,11 +444,6 @@ socket.on(
             "Estado inicial recibido:",
             datos
         );
-
-
-        // ==========================================
-        // IDENTIFICAR JUGADOR
-        // ==========================================
 
         if (
             datos.miUsuarioId ===
@@ -213,7 +454,7 @@ socket.on(
             soyJugador2 = false;
 
             console.log(
-                "🎮 Soy el Jugador 1"
+                "Jugador 1"
             );
 
         } else if (
@@ -225,14 +466,11 @@ socket.on(
             soyJugador2 = true;
 
             console.log(
-                "🎮 Soy el Jugador 2"
+                "Jugador 2"
             );
         }
 
-
-        // ==========================================
-        // SINCRONIZAR POSICIONES
-        // ==========================================
+        // Posiciones
 
         casillaJugador1 =
             datos.posicionJugador1;
@@ -240,10 +478,7 @@ socket.on(
         casillaJugador2 =
             datos.posicionJugador2;
 
-
-        // ==========================================
-        // SINCRONIZAR TURNO
-        // ==========================================
+        // Turnos
 
         if (
             datos.turno ===
@@ -257,10 +492,7 @@ socket.on(
             turnoActual = 2;
         }
 
-
-        // ==========================================
-        // COLOCAR MODELOS
-        // ==========================================
+        // Modelos
 
         if (jugador1) {
 
@@ -285,10 +517,6 @@ socket.on(
     }
 );
 
-// =====================================================
-// SINCRONIZAR MOVIMIENTO DE LA PARTIDA
-// =====================================================
-
 socket.on(
     "estadoPartida",
     async function (datos) {
@@ -309,10 +537,7 @@ socket.on(
         const nuevaPosicionJugador2 =
             datos.posicionJugador2;
 
-
-        // ==========================================
-        // MOVER JUGADOR 1
-        // ==========================================
+        // Movimiento
 
         if (
             jugador1 &&
@@ -331,11 +556,6 @@ socket.on(
                 );
         }
 
-
-        // ==========================================
-        // MOVER JUGADOR 2
-        // ==========================================
-
         if (
             jugador2 &&
             nuevaPosicionJugador2 !== casillaJugador2
@@ -352,11 +572,6 @@ socket.on(
                     cantidad
                 );
         }
-
-
-        // ==========================================
-        // ACTUALIZAR TURNO
-        // ==========================================
 
         if (
             datos.turno ===
@@ -376,17 +591,7 @@ socket.on(
             turnoActual
         );
 
-
-        // ==========================================
-        // TERMINÓ EL MOVIMIENTO
-        // ==========================================
-
         moviendoJugador = false;
-
-
-// ==========================================
-// COMPROBAR SI TERMINÓ LA PARTIDA
-// ==========================================
 
 if (datos.finalizada) {
 
@@ -396,12 +601,12 @@ if (datos.finalizada) {
     if (datos.ganador === miUsuarioId) {
 
         mensaje.textContent =
-            "🏆 ¡HAS GANADO LA PARTIDA!";
+            "Felicidades has ganado! :)";
 
     } else {
 
         mensaje.textContent =
-            "😔 Has perdido la partida.";
+            "Lastima, has perdido :(";
 
     }
 
@@ -413,7 +618,7 @@ if (datos.finalizada) {
         boton.disabled = true;
 
         boton.textContent =
-            "🏆 Partida terminada";
+            "Game Over";
     }
 
     return;
@@ -431,10 +636,7 @@ import { GLTFLoader } from
 import { OrbitControls } from
     "three/addons/controls/OrbitControls.js";
 
-
-// =====================================================
-// ESCENA
-// =====================================================
+// Escena
 
 const escena =
     new THREE.Scene();
@@ -442,31 +644,7 @@ const escena =
 escena.background =
     new THREE.Color(0x87ceeb);
 
-
-// =====================================================
-// CUADRÍCULA DE REFERENCIA
-// =====================================================
-
-const cuadrilla =
-    new THREE.GridHelper(
-        30,
-        30
-    );
-
-escena.add(cuadrilla);
-
-
-// Ejes de referencia
-
-const ejes =
-    new THREE.AxesHelper(10);
-
-escena.add(ejes);
-
-
-// =====================================================
-// CÁMARA
-// =====================================================
+// Camara
 
 const camara =
     new THREE.PerspectiveCamera(
@@ -489,10 +667,7 @@ camara.lookAt(
     0
 );
 
-
-// =====================================================
-// RENDERIZADOR
-// =====================================================
+// Render
 
 const renderizador =
     new THREE.WebGLRenderer({
@@ -514,10 +689,7 @@ document
         renderizador.domElement
     );
 
-
-// =====================================================
-// CONTROLES DE CÁMARA
-// =====================================================
+// Camara Controls
 
 const controles =
     new OrbitControls(
@@ -533,15 +705,12 @@ controles.target.set(
 
 controles.update();
 
-
-// =====================================================
-// LUCES
-// =====================================================
+// Luces Ambient, Directional y Focal
 
 const luzAmbiente =
     new THREE.AmbientLight(
         0xffffff,
-        2
+        0.5
     );
 
 escena.add(
@@ -552,7 +721,7 @@ escena.add(
 const luzDireccional =
     new THREE.DirectionalLight(
         0xffffff,
-        3
+        1.5
     );
 
 luzDireccional.position.set(
@@ -565,18 +734,29 @@ escena.add(
     luzDireccional
 );
 
+const luzFocal = new THREE.SpotLight(
+    0xffffff,
+    150,
+    40,
+    Math.PI / 5,
+    0.4,
+    2
+);
 
-// =====================================================
-// CARGADOR
-// =====================================================
+luzFocal.position.set(0, 12, 0);
+
+luzFocal.target.position.set(0, 0, 0);
+
+escena.add(luzFocal);
+escena.add(luzFocal.target);
+
+luzFocal.castShadow = true;
 
 const loader =
     new GLTFLoader();
 
 
-// =====================================================
-// VARIABLES
-// =====================================================
+// Variables del juego
 
 let mesa = null;
 
@@ -618,50 +798,8 @@ function revisarModelo(
         caja.getCenter(
             new THREE.Vector3()
         );
-
-
-    console.log(
-        "================================"
-    );
-
-    console.log(
-        "MODELO:",
-        nombre
-    );
-
-    console.log(
-        "Tamaño:",
-        tamaño
-    );
-
-    console.log(
-        "Centro:",
-        centro
-    );
-
-    console.log(
-        "Posición:",
-        modelo.position
-    );
-
-    console.log(
-        "Escala:",
-        modelo.scale
-    );
-
-    console.log(
-        "================================"
-    );
 }
 
-
-// =====================================================
-// CARGAR MESA
-// =====================================================
-
-console.log(
-    "Intentando cargar mesa..."
-);
 
 loader.load(
 
@@ -684,9 +822,6 @@ mesa.scale.set(
     4.5
 );
 
-// Revisar dimensiones después
-// de aplicar la escala
-
 mesa.updateMatrixWorld(true);
 
 const cajaMesa =
@@ -703,24 +838,13 @@ const tamañoMesa =
         new THREE.Vector3()
     );
 
-console.log(
-    "Mesa después de escalar:",
-    tamañoMesa
-);
-
-
 // Alinear el centro de la mesa
-// con el centro aproximado del tablero
 
 mesa.position.x =
     -0.1510093 - centroMesa.x;
 
 mesa.position.z =
     -0.1079885 - centroMesa.z;
-
-
-// Obtener nuevamente la caja
-// después de moverla
 
 mesa.updateMatrixWorld(true);
 
@@ -729,58 +853,25 @@ const cajaMesaFinal =
         .setFromObject(mesa);
 
 
-// El tablero empieza aproximadamente
-// en Y = 0.274
+// Altura Y del Tablero
 
 const alturaBaseTablero = 0.274;
 
 
-// Colocar la parte superior
-// de la mesa justo debajo del tablero
+// Colocar Mesa
 
 mesa.position.y +=
     alturaBaseTablero -
     cajaMesaFinal.max.y -
     0.05;
 
-
-console.log(
-    "Mesa colocada correctamente"
-);
-
 cargarTablero();
-
-    },
-
-    function (progreso) {
-
-        console.log(
-            "Cargando mesa..."
-        );
-
-    },
-
-    function (error) {
-
-        console.error(
-            "ERROR AL CARGAR MESA:",
-            error
-        );
 
     }
 
 );
 
-
-// =====================================================
-// CARGAR TABLERO
-// =====================================================
-
 function cargarTablero() {
-
-    console.log(
-        "Intentando cargar tablero..."
-    );
 
     loader.load(
 
@@ -798,10 +889,6 @@ function cargarTablero() {
                 tablero
             );
 
-            console.log(
-                "TABLERO CARGADO CORRECTAMENTE"
-            );
-
             revisarModelo(
                 "Tablero",
                 tablero
@@ -811,31 +898,15 @@ function cargarTablero() {
 
         },
 
-        undefined,
-
-        function (error) {
-
-            console.error(
-                "ERROR AL CARGAR TABLERO:",
-                error
-            );
-
-        }
+        undefined
 
     );
 
 }
 
-
-// =====================================================
-// CARGAR JUGADOR 1
-// =====================================================
+// Cargar Jugadores
 
 function cargarJugador1() {
-
-    console.log(
-        "Intentando cargar jugador 1..."
-    );
 
     loader.load(
 
@@ -848,10 +919,6 @@ function cargarJugador1() {
 
             escena.add(
                 jugador1
-            );
-
-            console.log(
-                "JUGADOR 1 CARGADO CORRECTAMENTE"
             );
 
             revisarModelo(
@@ -867,31 +934,13 @@ function cargarJugador1() {
 
         },
 
-        undefined,
-
-        function (error) {
-
-            console.error(
-                "ERROR AL CARGAR JUGADOR 1:",
-                error
-            );
-
-        }
+        undefined
 
     );
 
 }
 
-
-// =====================================================
-// CARGAR JUGADOR 2
-// =====================================================
-
 function cargarJugador2() {
-
-    console.log(
-        "Intentando cargar jugador 2..."
-    );
 
     loader.load(
 
@@ -906,10 +955,6 @@ function cargarJugador2() {
                 jugador2
             );
 
-            console.log(
-                "JUGADOR 2 CARGADO CORRECTAMENTE"
-            );
-
             revisarModelo(
                 "Jugador 2",
                 jugador2
@@ -922,33 +967,17 @@ function cargarJugador2() {
 
         },
 
-        undefined,
-
-        function (error) {
-
-            console.error(
-                "ERROR AL CARGAR JUGADOR 2:",
-                error
-            );
-
-        }
+        undefined
 
     );
 
 }
 
-
-
-// =====================================================
-// POSICIONES DE LAS CASILLAS
-// =====================================================
+// Posiciones de las casillas
 
 const posicionesCasillas = {};
 
-
-// =====================================================
-// LÍMITES DEL TABLERO
-// =====================================================
+// Posiciones casilla 1 (Inicio) y 100 (Final)
 
 const xInicio = -5.505;
 const xFinal = 6.055;
@@ -956,10 +985,7 @@ const xFinal = 6.055;
 const zInicio = 6.00;
 const zFinal = -5.50;
 
-
-// =====================================================
-// POSICIONES DE Z DE CADA FILA
-// =====================================================
+// Posiciones Eje Z || Fila
 
 const posicionesZ = [
     6.00,   // Fila 1
@@ -974,17 +1000,7 @@ const posicionesZ = [
    -5.50    // Fila 10
 ];
 
-
-// =====================================================
-// POSICIONES DE X
-// =====================================================
-//
-// Por ahora usamos las posiciones de las columnas
-// basándonos en los extremos del tablero.
-//
-// Estas las vamos a ajustar después con las medidas
-// reales que ya obtuvimos.
-//
+// Posiciones Eje X || Columna
 
 const posicionesX = [
     -5.505,  // Columna 1
@@ -999,11 +1015,6 @@ const posicionesX = [
      6.055   // Columna 10
 ];
 
-
-// =====================================================
-// GENERAR LAS 100 CASILLAS
-// =====================================================
-
 for (let numero = 1; numero <= 100; numero++) {
 
     // Fila de la casilla
@@ -1015,11 +1026,6 @@ for (let numero = 1; numero <= 100; numero++) {
         (numero - 1) % 10;
 
     let columna;
-
-
-    // =================================================
-    // NUMERACIÓN EN SERPIENTE
-    // =================================================
 
     if (fila % 2 === 0) {
 
@@ -1049,10 +1055,7 @@ for (let numero = 1; numero <= 100; numero++) {
     ];
 }
 
-
-// =====================================================
-// FORZAR LAS CUATRO ESQUINAS EXACTAS
-// =====================================================
+// Esquinas del Tablero
 
 posicionesCasillas[1] =
     [-5.505, 0.5, 6.00];
@@ -1066,47 +1069,7 @@ posicionesCasillas[91] =
 posicionesCasillas[100] =
     [-5.505, 0.5, -5.50];
 
-
-// =====================================================
-// MOSTRAR POSICIONES EN CONSOLA
-// =====================================================
-
-console.log(
-    "=============================="
-);
-
-console.log(
-    "PRUEBA DE ESQUINAS"
-);
-
-console.log(
-    "Casilla 1:",
-    posicionesCasillas[1]
-);
-
-console.log(
-    "Casilla 10:",
-    posicionesCasillas[10]
-);
-
-console.log(
-    "Casilla 91:",
-    posicionesCasillas[91]
-);
-
-console.log(
-    "Casilla 100:",
-    posicionesCasillas[100]
-);
-
-console.log(
-    "=============================="
-);
-
-
-// =====================================================
-// FUNCIÓN PARA COLOCAR JUGADOR
-// =====================================================
+// Colocar Jugadores
 
 function colocarEnCasilla(
     jugador,
@@ -1116,29 +1079,12 @@ function colocarEnCasilla(
     const posicion =
         posicionesCasillas[numero];
 
-
-    if (!posicion) {
-
-        console.error(
-            "No existe la casilla:",
-            numero
-        );
-
-        return;
-    }
-
-
     jugador.position.set(
         posicion[0],
         posicion[1],
         posicion[2]
     );
 
-
-    console.log(
-        `Jugador colocado en casilla ${numero}:`,
-        posicion
-    );
 }
 
 async function moverJugador(jugador, casillaActual, cantidad) {
@@ -1154,10 +1100,6 @@ async function moverJugador(jugador, casillaActual, cantidad) {
         nuevaCasilla = 1;
     }
 
-    console.log(
-        `Moviendo de casilla ${casillaActual} a ${nuevaCasilla}`
-    );
-
     const direccion =
         nuevaCasilla > casillaActual ? 1 : -1;
 
@@ -1170,10 +1112,6 @@ async function moverJugador(jugador, casillaActual, cantidad) {
     ) {
 
         colocarEnCasilla(jugador, casilla);
-
-        console.log(
-            `Jugador avanzando a casilla ${casilla}`
-        );
 
         await new Promise(
             resolver => setTimeout(resolver, 400)
@@ -1201,51 +1139,22 @@ function actualizarBotonDado() {
         boton.disabled = false;
 
         boton.textContent =
-            "🎲 Lanzar dado";
+            "Lanza el dado";
 
     } else {
 
         boton.disabled = true;
 
         boton.textContent =
-            "⏳ Esperando turno...";
+            "Esperando al otro jugador";
     }
 }
 
 async function lanzarDado() {
 
-    if (moviendoJugador) {
-
-        console.log(
-            "El jugador todavía se está moviendo..."
-        );
-
-        return;
-    }
-
-
-    if (
-        (soyJugador1 && turnoActual !== 1) ||
-        (soyJugador2 && turnoActual !== 2)
-    ) {
-
-        console.log(
-            "No es tu turno."
-        );
-
-        return;
-    }
-
-
     moviendoJugador = true;
 
     actualizarBotonDado();
-
-
-    console.log(
-        "Solicitando lanzamiento al servidor..."
-    );
-
 
     socket.emit(
         "lanzarDado",
@@ -1264,23 +1173,16 @@ function actualizarTurno() {
     if (turnoActual === 1) {
 
         mensaje.textContent =
-            "🎲 Turno del Jugador 1";
+            "Turno del Jugador 1";
 
     } else {
 
         mensaje.textContent =
-            "🎲 Turno del Jugador 2";
+            "Turno del Jugador 2";
     }
 }
-// =====================================================
-// CARGAR DADO
-// =====================================================
 
 function cargarDado() {
-
-    console.log(
-        "Intentando cargar dado..."
-    );
 
     loader.load(
 
@@ -1293,10 +1195,6 @@ function cargarDado() {
 
             escena.add(
                 dado
-            );
-
-            console.log(
-                "DADO CARGADO CORRECTAMENTE"
             );
 
             revisarModelo(
@@ -1319,25 +1217,11 @@ dado.position.set(
 
         },
 
-        undefined,
-
-        function (error) {
-
-            console.error(
-                "ERROR AL CARGAR DADO:",
-                error
-            );
-
-        }
+        undefined
 
     );
 
 }
-
-
-// =====================================================
-// ANIMACIÓN
-// =====================================================
 
 function animar() {
 
@@ -1355,10 +1239,6 @@ function animar() {
 }
 
 animar();
-
-        // =====================================================
-        // REDIMENSIONAR VENTANA
-        // =====================================================
 
         window.addEventListener(
             "resize",
@@ -1378,11 +1258,6 @@ animar();
 
             }
         );
-
-
-        // =====================================================
-        // VOLVER AL LOBBY
-        // =====================================================
 
         document
             .getElementById("volverLobby")
